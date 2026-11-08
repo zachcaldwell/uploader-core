@@ -20,7 +20,8 @@
 		"check": "tsc --noEmit",
 		"test:unit": "node --test 'src/**/*.test.ts'",
 		"test:browser": "node test/bundle.mjs && playwright test",
-		"test": "npm run test:unit && npm run test:browser"
+		"test": "npm run test:unit && npm run test:browser",
+		"prepare": "npm run build"
 	},
 	"dependencies": {
 		"pica": "^9.0.1"
