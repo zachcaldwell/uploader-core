@@ -1,0 +1,35 @@
+{
+	"name": "uploader-core",
+	"version": "0.0.1",
+	"private": true,
+	"description": "Resize and compress images in the browser before upload.",
+	"type": "module",
+	"license": "MIT",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"sideEffects": false,
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"check": "tsc --noEmit",
+		"test:unit": "node --test 'src/**/*.test.ts'",
+		"test:browser": "node test/bundle.mjs && playwright test",
+		"test": "npm run test:unit && npm run test:browser"
+	},
+	"dependencies": {
+		"pica": "^9.0.1"
+	},
+	"devDependencies": {
+		"@playwright/test": "1.63.0",
+		"@types/node": "^22.20.5",
+		"@types/pica": "^9.0.5",
+		"esbuild": "^0.28.0",
+		"typescript": "^6.0.3"
+	}
+}
