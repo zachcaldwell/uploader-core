@@ -97,12 +97,113 @@ size, so there the `maxBytes` check is what holds, and it trusts the size the cl
 Why PUT and not a presigned POST: R2 and Backblaze B2 don't support POST uploads, and one path
 covers every provider.
 
+## `<photo-upload>` (from `uploader-core/element`)
+
+A drop-in element for picking, dropping or pasting photos. Each one is compressed and uploaded,
+three at a time.
+
+```html
+<script type="module">
+	import 'uploader-core/element';
+	import 'uploader-core/element.css'; // optional default look
+</script>
+
+<photo-upload presign="/api/presign" multiple max-files="10"></photo-upload>
+```
+
+![The default look: a dropzone above three thumbnails, one with an error and a Retry button](docs/element-default.png)
+
+```js
+document.querySelector('photo-upload').addEventListener('complete', (e) => {
+	save(e.detail.key); // also: file, bytes, type, originalBytes
+});
+```
+
+| Attribute       | Default   | What it does                                     |
+| --------------- | --------- | ------------------------------------------------ |
+| `presign`       |           | The presign endpoint's URL. To pass a function, set the `presign` property instead. Set `presignHeaders` for auth. |
+| `accept`        | `image/*` | As on `<input type="file">`.                     |
+| `multiple`      |           | Allows more than one file per pick.              |
+| `max-files`     |           | The most files it holds at once.                 |
+| `max-dimension` | `2048`    | The longest side after compressing.              |
+| `quality`       | `0.82`    |                                                  |
+| `format`        | (source)  | `jpeg`, `png` or `webp`.                         |
+
+**Events** (they bubble): `add`, `progress` (`{ file, progress }`), `complete` and `error`
+(`{ file, error }`, for a refused type, too many files, or a failed upload). **Methods:** `add(files)`
+and `clear()`.
+
+### Styling it
+
+It renders into the light DOM with no classes of its own, so any CSS reaches it. You select its
+parts with `data-part` and its state with `data-state`:
+
+```html
+<photo-upload data-state="idle | dragging | busy" data-count="2">
+	<label data-part="dropzone">
+		<input data-part="input" type="file" />
+		<span data-part="prompt"><!-- your children, or a line of text --></span>
+	</label>
+	<ul data-part="files">
+		<li data-part="file" data-state="queued | compressing | uploading | done | error" data-progress="0.42" style="--progress: 0.42">
+			<img data-part="thumb" /> <span data-part="name">…</span> <progress data-part="progress"></progress>
+			<button data-part="retry">Retry</button> <button data-part="remove">Remove</button>
+		</li>
+	</ul>
+</photo-upload>
+```
+
+- **Plain CSS:** `photo-upload [data-part=file][data-state=error] { … }`
+- **Tailwind:** arbitrary variants on the element, such as
+  `class="[&_[data-part=dropzone]]:border-dashed data-[state=dragging]:bg-blue-50"`.
+- **The default stylesheet** is in `@layer uploader`, so any of your CSS outside a layer overrides it.
+  To adjust it instead of replacing it, set its custom properties: `--uploader-accent`, `--uploader-ink`,
+  `--uploader-muted`, `--uploader-line`, `--uploader-surface`, `--uploader-error`, `--uploader-radius`
+  and `--uploader-tile`. They follow the page's `color-scheme` for light and dark.
+
+Importing `uploader-core/element` during server rendering is safe: it only defines the element in a browser.
+
+## `presignSupabase(bucket, options)` (from `uploader-core/supabase`)
+
+It makes a target in Supabase Storage from a signed upload URL. It needs only the bucket you
+already have, `supabase.storage.from('photos')`, so the package doesn't depend on supabase-js.
+
+The signed URL's token is the whole authorization, and it's good for two hours. That means this
+runs wherever your Supabase client does:
+
+- **In the browser, under the user's session:** your bucket's RLS policies decide which paths they
+  may sign. No endpoint is needed.
+
+  ```ts
+  import { upload } from 'uploader-core';
+  import { presignSupabase } from 'uploader-core/supabase';
+
+  const bucket = supabase.storage.from('photos');
+  const { key } = await upload(file, {
+  	presign: (request) =>
+  		presignSupabase(bucket, { key: `${userId}/${crypto.randomUUID()}`, request, apikey: SUPABASE_ANON_KEY })
+  });
+  ```
+
+- **On the server, with a service key:** in an endpoint, as with `presignS3`.
+
+- **`options`:** `{ key, request, maxBytes?, accept?, cacheControl?, upsert?, apikey? }`.
+  `cacheControl` is in seconds, default 3600 as in supabase-js. `upsert` defaults to false. Pass
+  `apikey` (the project's anon key) if your gateway requires one.
+
+**Size and type limits:** the bucket's own file size limit and allowed MIME types are enforced on
+the upload itself. `maxBytes` and `accept` refuse before anything is signed.
+
+The upload is a raw PUT, the same request supabase-js's `uploadToSignedUrl` makes for a body that
+isn't a Blob, and Storage takes it outside its JWT check. Unlike `supabase.storage.upload()`, it
+reports progress, retries and can be aborted. It does cost one extra request to sign.
+
 ## Development
 
 ```sh
 npm install
 npm run check          # types
-npm run test:unit      # node --test: sizing, SigV4 (against AWS's example and the AWS SDK), presignS3
-npm run test:browser   # bundles with esbuild, runs Playwright: compress on fixtures, upload against a faked bucket
+npm run test:unit      # node --test: sizing, accept lists, SigV4 (against AWS's example and the AWS SDK), presignS3, presignSupabase (against storage-js)
+npm run test:browser   # bundles with esbuild, runs Playwright: compress, upload and the element against a faked bucket
 sh test/make-fixtures.sh   # regenerate fixtures (ImageMagick + Pillow)
 ```

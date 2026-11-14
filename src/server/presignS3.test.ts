@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { presignS3, PresignRefused, type S3Config } from './presignS3.ts';
+import { PresignRefused } from '../presign.ts';
+import { presignS3, type S3Config } from './presignS3.ts';
 
 const aws: S3Config = {
 	bucket: 'photos',

@@ -2,7 +2,7 @@
 import { build } from 'esbuild';
 
 await build({
-	entryPoints: ['src/index.ts'],
+	entryPoints: ['test/entry.ts'],
 	bundle: true,
 	format: 'iife',
 	globalName: 'uploaderCore',
