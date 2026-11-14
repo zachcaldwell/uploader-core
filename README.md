@@ -97,12 +97,78 @@ size, so there the `maxBytes` check is what holds, and it trusts the size the cl
 Why PUT and not a presigned POST: R2 and Backblaze B2 don't support POST uploads, and one path
 covers every provider.
 
+## `<photo-upload>` (from `uploader-core/element`)
+
+A drop-in element for picking, dropping or pasting photos. Each one is compressed and uploaded,
+three at a time.
+
+```html
+<script type="module">
+	import 'uploader-core/element';
+	import 'uploader-core/element.css'; // optional default look
+</script>
+
+<photo-upload presign="/api/presign" multiple max-files="10"></photo-upload>
+```
+
+![The default look: a dropzone above three thumbnails, one with an error and a Retry button](docs/element-default.png)
+
+```js
+document.querySelector('photo-upload').addEventListener('complete', (e) => {
+	save(e.detail.key); // also: file, bytes, type, originalBytes
+});
+```
+
+| Attribute       | Default   | What it does                                     |
+| --------------- | --------- | ------------------------------------------------ |
+| `presign`       |           | The presign endpoint's URL. To pass a function, set the `presign` property instead. Set `presignHeaders` for auth. |
+| `accept`        | `image/*` | As on `<input type="file">`.                     |
+| `multiple`      |           | Allows more than one file per pick.              |
+| `max-files`     |           | The most files it holds at once.                 |
+| `max-dimension` | `2048`    | The longest side after compressing.              |
+| `quality`       | `0.82`    |                                                  |
+| `format`        | (source)  | `jpeg`, `png` or `webp`.                         |
+
+**Events** (they bubble): `add`, `progress` (`{ file, progress }`), `complete` and `error`
+(`{ file, error }`, for a refused type, too many files, or a failed upload). **Methods:** `add(files)`
+and `clear()`.
+
+### Styling it
+
+It renders into the light DOM with no classes of its own, so any CSS reaches it. You select its
+parts with `data-part` and its state with `data-state`:
+
+```html
+<photo-upload data-state="idle | dragging | busy" data-count="2">
+	<label data-part="dropzone">
+		<input data-part="input" type="file" />
+		<span data-part="prompt"><!-- your children, or a line of text --></span>
+	</label>
+	<ul data-part="files">
+		<li data-part="file" data-state="queued | compressing | uploading | done | error" data-progress="0.42" style="--progress: 0.42">
+			<img data-part="thumb" /> <span data-part="name">…</span> <progress data-part="progress"></progress>
+			<button data-part="retry">Retry</button> <button data-part="remove">Remove</button>
+		</li>
+	</ul>
+</photo-upload>
+```
+
+- **Plain CSS:** `photo-upload [data-part=file][data-state=error] { … }`
+- **Tailwind:** arbitrary variants on the element, such as
+  `class="[&_[data-part=dropzone]]:border-dashed data-[state=dragging]:bg-blue-50"`.
+- **The default stylesheet** is in `@layer uploader`, so any of your CSS outside a layer overrides it.
+  To adjust it instead of replacing it, set its custom properties: `--uploader-accent`, `--uploader-ink`,
+  `--uploader-muted`, `--uploader-line`, `--uploader-surface`, `--uploader-error`, `--uploader-radius`
+  and `--uploader-tile`. They follow the page's `color-scheme` for light and dark.
+
+Importing `uploader-core/element` during server rendering is safe: it only defines the element in a browser.
+
 ## Development
 
 ```sh
 npm install
 npm run check          # types
-npm run test:unit      # node --test: sizing, SigV4 (against AWS's example and the AWS SDK), presignS3
-npm run test:browser   # bundles with esbuild, runs Playwright: compress on fixtures, upload against a faked bucket
+npm run test:unit      # node --test: sizing, accept lists, SigV4 (against AWS's example and the AWS SDK), presignS3
+npm run test:browser   # bundles with esbuild, runs Playwright: compress, upload and the element against a faked bucket
 sh test/make-fixtures.sh   # regenerate fixtures (ImageMagick + Pillow)
 ```
