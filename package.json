@@ -18,7 +18,11 @@
 			"types": "./dist/element/index.d.ts",
 			"import": "./dist/element/index.js"
 		},
-		"./element.css": "./dist/element.css"
+		"./element.css": "./dist/element.css",
+		"./supabase": {
+			"types": "./dist/supabase/index.d.ts",
+			"import": "./dist/supabase/index.js"
+		}
 	},
 	"files": [
 		"dist"
@@ -40,6 +44,7 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "1.63.0",
+		"@supabase/storage-js": "^2.119.0",
 		"@types/node": "^22.20.5",
 		"@types/pica": "^9.0.5",
 		"esbuild": "^0.28.0",

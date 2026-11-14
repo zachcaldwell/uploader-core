@@ -1,3 +1,4 @@
+import { checkRequest, isImage } from '../presign.ts';
 import type { PresignRequest, UploadTarget } from '../target.ts';
 import { presignUrl, uriEncode } from './sigv4.ts';
 
@@ -27,16 +28,6 @@ export interface PresignS3Options {
 	expiresIn?: number;
 }
 
-/** Refused before signing: too big, the wrong type, or no size at all. */
-export class PresignRefused extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'PresignRefused';
-	}
-}
-
-const isImage = (contentType: string) => /^image\/[\w.+-]+$/.test(contentType);
-
 /**
  * A presigned PUT for S3 or anything S3-compatible (R2, MinIO, Backblaze B2). Its signature
  * covers the content type and the exact size the client declared, so S3 refuses a file that
@@ -47,10 +38,8 @@ export async function presignS3(
 	config: S3Config,
 	{ key, request, maxBytes, accept = isImage, expiresIn = 300 }: PresignS3Options
 ): Promise<UploadTarget> {
+	checkRequest(request, maxBytes, accept);
 	const { contentType, size } = request;
-	if (!Number.isInteger(size) || size <= 0) throw new PresignRefused('No size given');
-	if (size > maxBytes) throw new PresignRefused(`${size} bytes is over the ${maxBytes} allowed`);
-	if (!accept(contentType)) throw new PresignRefused(`${contentType} isn't accepted`);
 
 	const path = key.split('/').map(uriEncode).join('/');
 	const url = config.endpoint

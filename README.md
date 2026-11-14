@@ -163,12 +163,47 @@ parts with `data-part` and its state with `data-state`:
 
 Importing `uploader-core/element` during server rendering is safe: it only defines the element in a browser.
 
+## `presignSupabase(bucket, options)` (from `uploader-core/supabase`)
+
+It makes a target in Supabase Storage from a signed upload URL. It needs only the bucket you
+already have, `supabase.storage.from('photos')`, so the package doesn't depend on supabase-js.
+
+The signed URL's token is the whole authorization, and it's good for two hours. That means this
+runs wherever your Supabase client does:
+
+- **In the browser, under the user's session:** your bucket's RLS policies decide which paths they
+  may sign. No endpoint is needed.
+
+  ```ts
+  import { upload } from 'uploader-core';
+  import { presignSupabase } from 'uploader-core/supabase';
+
+  const bucket = supabase.storage.from('photos');
+  const { key } = await upload(file, {
+  	presign: (request) =>
+  		presignSupabase(bucket, { key: `${userId}/${crypto.randomUUID()}`, request, apikey: SUPABASE_ANON_KEY })
+  });
+  ```
+
+- **On the server, with a service key:** in an endpoint, as with `presignS3`.
+
+- **`options`:** `{ key, request, maxBytes?, accept?, cacheControl?, upsert?, apikey? }`.
+  `cacheControl` is in seconds, default 3600 as in supabase-js. `upsert` defaults to false. Pass
+  `apikey` (the project's anon key) if your gateway requires one.
+
+**Size and type limits:** the bucket's own file size limit and allowed MIME types are enforced on
+the upload itself. `maxBytes` and `accept` refuse before anything is signed.
+
+The upload is a raw PUT, the same request supabase-js's `uploadToSignedUrl` makes for a body that
+isn't a Blob, and Storage takes it outside its JWT check. Unlike `supabase.storage.upload()`, it
+reports progress, retries and can be aborted. It does cost one extra request to sign.
+
 ## Development
 
 ```sh
 npm install
 npm run check          # types
-npm run test:unit      # node --test: sizing, accept lists, SigV4 (against AWS's example and the AWS SDK), presignS3
+npm run test:unit      # node --test: sizing, accept lists, SigV4 (against AWS's example and the AWS SDK), presignS3, presignSupabase (against storage-js)
 npm run test:browser   # bundles with esbuild, runs Playwright: compress, upload and the element against a faked bucket
 sh test/make-fixtures.sh   # regenerate fixtures (ImageMagick + Pillow)
 ```
