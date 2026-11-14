@@ -3,7 +3,9 @@
 	"compilerOptions": {
 		"types": [],
 		"noEmit": false,
-		"allowImportingTsExtensions": false,
+		"allowImportingTsExtensions": true,
+		// Source imports name .ts files (Node runs the tests straight); the output names .js.
+		"rewriteRelativeImportExtensions": true,
 		"declaration": true,
 		"outDir": "dist",
 		"rootDir": "src"

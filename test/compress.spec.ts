@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import type { CompressOptions } from '../src';
+import type { CompressOptions } from '../src/index.ts';
 
 declare global {
 	interface Window {
-		uploaderCore: typeof import('../src');
+		uploaderCore: typeof import('../src/index.ts');
 	}
 }
 
