@@ -11,5 +11,5 @@
 		// The unit tests run straight in Node, which needs the extension.
 		"allowImportingTsExtensions": true
 	},
-	"include": ["src", "test", "playwright.config.ts"]
+	"include": ["src", "test", "playwright.config.ts", "site/src", "site/*.ts"]
 }

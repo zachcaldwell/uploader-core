@@ -1,0 +1,108 @@
+/*
+ * The element's default look sits in @layer uploader. Tailwind's preflight is in @layer base,
+ * so name the order first: uploader after base (or preflight resets its buttons and lists),
+ * before utilities (so a utility can still override it).
+ */
+@layer theme, base, uploader, components, utilities;
+@import 'tailwindcss';
+
+@source '../index.html';
+@source './main.ts';
+
+:root {
+	color-scheme: light dark;
+	/* Cyanotype: a blueprint on paper by day, the print itself by night. */
+	--ink: light-dark(#10295a, #e8eff7);
+	--ink-soft: light-dark(#3a5586, #a9bdd8);
+	--paper: light-dark(#f5f8fb, #0e2149);
+	--wash: light-dark(#dce8f3, #142d5e);
+	--rule: light-dark(#9fb6d1, #33518a);
+	--marker: light-dark(#f2cf3a, #e9c22e);
+}
+
+@theme {
+	--color-ink: var(--ink);
+	--color-ink-soft: var(--ink-soft);
+	--color-paper: var(--paper);
+	--color-wash: var(--wash);
+	--color-rule: var(--rule);
+	--color-marker: var(--marker);
+
+	--font-display: 'Bricolage Grotesque Variable', 'Arial Narrow', sans-serif;
+	--font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer components {
+	/* A ruler's ticks: a major one every tenth of the way, minor ones between. */
+	.ruler-ticks {
+		background:
+			repeating-linear-gradient(to right, var(--rule) 0 1px, transparent 1px 10%) bottom / 100% 100%
+				no-repeat,
+			repeating-linear-gradient(to right, var(--rule) 0 1px, transparent 1px 2%) bottom / 100% 45%
+				no-repeat;
+	}
+
+	/* Nothing measured yet: hatched, so it doesn't read as a field to type in. */
+	#ruler[data-empty] .ruler-track {
+		background: repeating-linear-gradient(135deg, var(--wash) 0 5px, transparent 5px 10px);
+	}
+
+	#ruler[data-empty] .ruler-scale {
+		visibility: hidden;
+	}
+
+	.step {
+		@apply border-t-2 border-ink pt-4;
+		counter-increment: step;
+	}
+
+	.step::before {
+		content: counter(step);
+		@apply font-display text-5xl font-extrabold [font-stretch:75%];
+		display: block;
+		margin-bottom: 0.5rem;
+		color: var(--rule);
+	}
+
+	ol:has(> .step) {
+		counter-reset: step;
+	}
+
+	.code {
+		@apply mt-3 overflow-x-auto rounded-md border border-rule bg-paper p-4 font-mono text-[0.8125rem] leading-relaxed;
+	}
+
+	.field {
+		@apply flex flex-col gap-1.5 text-sm font-medium;
+	}
+
+	.field input {
+		@apply rounded-sm border border-rule bg-paper px-3 py-2 text-base font-normal tabular-nums;
+	}
+
+	.field input:focus-visible,
+	input[type='radio']:focus-visible {
+		@apply outline-2 outline-offset-2 outline-ink;
+	}
+}
+
+/* The demo's element, themed by the custom properties its default look reads. */
+photo-upload {
+	--uploader-accent: var(--ink);
+	--uploader-ink: var(--ink);
+	--uploader-muted: var(--ink-soft);
+	--uploader-line: var(--rule);
+	--uploader-surface: var(--wash);
+	--uploader-radius: 0.375rem;
+	--uploader-tile: 5.5rem;
+}
+
+photo-upload [data-part='dropzone'] {
+	padding-block: 3rem;
+	background: var(--paper);
+}
+
+a:focus-visible {
+	@apply rounded-xs outline-2 outline-offset-4 outline-ink;
+}
