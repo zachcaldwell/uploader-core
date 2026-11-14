@@ -1,5 +1,5 @@
 import type { Pica } from 'pica';
-import { fitWithin } from './fit';
+import { fitWithin } from './fit.ts';
 
 // Loaded with the first photo rather than up front: only compressing one needs it.
 let pica: Promise<Pica> | undefined;
