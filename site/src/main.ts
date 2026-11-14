@@ -1,8 +1,8 @@
 import '@fontsource-variable/bricolage-grotesque/wdth.css';
-import '@fontsource/ibm-plex-sans/400.css';
-import '@fontsource/ibm-plex-sans/500.css';
-import '@fontsource/ibm-plex-sans/600.css';
-import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/ibm-plex-sans/latin-400.css';
+import '@fontsource/ibm-plex-sans/latin-500.css';
+import '@fontsource/ibm-plex-sans/latin-600.css';
+import '@fontsource/jetbrains-mono/latin-400.css';
 import '../../src/element/element.css';
 import '../../src/element/index.ts';
 import type { CompleteDetail } from '../../src/element/index.ts';
@@ -12,31 +12,87 @@ const GB = 1024 * MB;
 
 // The demo's bucket ------------------------------------------------------------------------------
 
-const workerReady: Promise<void> =
-	'serviceWorker' in navigator
-		? navigator.serviceWorker.register('/sw.js').then(async () => {
-				await navigator.serviceWorker.ready;
-				// The first visit isn't controlled until the worker claims the page.
-				if (!navigator.serviceWorker.controller) {
-					await new Promise((resolve) =>
-						navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })
-					);
-				}
-			})
-		: Promise.reject(new Error('This browser has no service workers, so the demo can’t upload'));
-workerReady.catch(() => {});
+const BUCKET = 'demo-bucket/';
+
+/**
+ * Where service workers run, one stands in for the bucket (`public/sw.js`). Where they don't
+ * (a sandboxed frame, some private windows), the page does it itself: see `fakeBucket`.
+ */
+const bucketReady: Promise<void> = (async () => {
+	try {
+		// A worker that's refused may say so, or may simply never become ready: wait 3s at most.
+		await Promise.race([
+			useServiceWorker(),
+			new Promise((_, reject) => setTimeout(() => reject(new Error('No service worker')), 3000))
+		]);
+	} catch {
+		fakeBucket();
+	}
+})();
+
+async function useServiceWorker() {
+	await navigator.serviceWorker.register('sw.js');
+	await navigator.serviceWorker.ready;
+	// The first visit isn't controlled until the worker claims the page.
+	if (!navigator.serviceWorker.controller) {
+		await new Promise((resolve) =>
+			navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })
+		);
+	}
+}
 
 const demo = document.querySelector('photo-upload')!;
-// What a presign endpoint would do, done in the page: the target is the service worker.
+// What a presign endpoint would do, done in the page: the target is the stand-in bucket.
 demo.presign = async (request) => {
-	await workerReady;
+	await bucketReady;
 	return {
-		url: `/demo-bucket/${crypto.randomUUID()}`,
+		url: new URL(`${BUCKET}${crypto.randomUUID()}`, location.href).href,
 		method: 'PUT',
 		headers: { 'Content-Type': request.contentType },
 		key: `demo/${request.name ?? 'photo'}`
 	};
 };
+
+/**
+ * The bucket, in the page: an XMLHttpRequest to it never goes out, but reports progress over
+ * about half a second and then a 200, and stops if aborted. Every other request is untouched.
+ */
+function fakeBucket() {
+	type Demo = XMLHttpRequest & { demoTimer?: ReturnType<typeof setTimeout>; isDemo?: boolean };
+	const { open, send, abort } = XMLHttpRequest.prototype;
+
+	XMLHttpRequest.prototype.open = function (this: Demo, method: string, url: string | URL) {
+		this.isDemo = new URL(url, location.href).pathname.includes(`/${BUCKET}`);
+		// eslint-disable-next-line prefer-rest-params
+		return open.apply(this, arguments as unknown as Parameters<typeof open>);
+	};
+
+	XMLHttpRequest.prototype.send = function (this: Demo, body) {
+		if (!this.isDemo) return send.call(this, body);
+		const total = body instanceof Blob ? body.size : 0;
+		let step = 0;
+		const tick = () => {
+			step++;
+			const loaded = Math.min(total, Math.round((total * step) / 8));
+			this.upload.dispatchEvent(new ProgressEvent('progress', { lengthComputable: true, loaded, total }));
+			if (step < 8) {
+				this.demoTimer = setTimeout(tick, 60);
+				return;
+			}
+			Object.defineProperty(this, 'status', { value: 200 });
+			this.dispatchEvent(new ProgressEvent('load'));
+			this.dispatchEvent(new ProgressEvent('loadend'));
+		};
+		this.demoTimer = setTimeout(tick, 60);
+	};
+
+	XMLHttpRequest.prototype.abort = function (this: Demo) {
+		if (!this.isDemo) return abort.call(this);
+		clearTimeout(this.demoTimer);
+		this.dispatchEvent(new ProgressEvent('abort'));
+		this.dispatchEvent(new ProgressEvent('loadend'));
+	};
+}
 
 // The ruler --------------------------------------------------------------------------------------
 

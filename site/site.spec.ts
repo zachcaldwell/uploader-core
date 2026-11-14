@@ -75,3 +75,38 @@ test('screenshots', async ({ page }) => {
 	await page.waitForTimeout(400); // the default look eases its colors over 120ms
 	await page.screenshot({ path: shots('dark') });
 });
+
+test.describe('without service workers', () => {
+	test.use({ serviceWorkers: 'block' });
+
+	test('the page stands in for the bucket, uploads and all', async ({ page }) => {
+		await page.goto('/');
+		await page
+			.locator('photo-upload [data-part=input]')
+			.setInputFiles([fixture('rotated.jpg'), fixture('panorama.jpg')]);
+
+		const rows = page.locator('[data-part=file]');
+		await expect(rows.nth(0)).toHaveAttribute('data-state', 'done', { timeout: 10_000 });
+		await expect(rows.nth(1)).toHaveAttribute('data-state', 'done');
+		await expect(page.locator('#ruler-caption')).toContainText('2 photos');
+	});
+
+	test('removing a photo mid-upload stops it', async ({ page }) => {
+		await page.goto('/');
+		const completes = await page.evaluateHandle(() => {
+			const seen: string[] = [];
+			document.querySelector('photo-upload')!.addEventListener('complete', (e) =>
+				seen.push((e as CustomEvent).detail.file.name)
+			);
+			return seen;
+		});
+		await page.locator('photo-upload [data-part=input]').setInputFiles(fixture('rotated.jpg'));
+
+		const row = page.locator('[data-part=file]');
+		await expect(row).toHaveAttribute('data-state', 'uploading', { timeout: 10_000 });
+		await row.locator('[data-part=remove]').click();
+		await expect(row).toHaveCount(0);
+		await page.waitForTimeout(800);
+		expect(await completes.jsonValue()).toEqual([]);
+	});
+});
