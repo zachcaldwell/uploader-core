@@ -157,6 +157,9 @@ parts with `data-part` and its state with `data-state`:
 - **Tailwind:** arbitrary variants on the element, such as
   `class="[&_[data-part=dropzone]]:border-dashed data-[state=dragging]:bg-blue-50"`.
 - **The default stylesheet** is in `@layer uploader`, so any of your CSS outside a layer overrides it.
+  **With Tailwind v4**, name the layer order before importing Tailwind, or preflight (in `@layer base`)
+  resets the element's buttons and lists:
+  `@layer theme, base, uploader, components, utilities;`
   To adjust it instead of replacing it, set its custom properties: `--uploader-accent`, `--uploader-ink`,
   `--uploader-muted`, `--uploader-line`, `--uploader-surface`, `--uploader-error`, `--uploader-radius`
   and `--uploader-tile`. They follow the page's `color-scheme` for light and dark.
@@ -206,4 +209,9 @@ npm run check          # types
 npm run test:unit      # node --test: sizing, accept lists, SigV4 (against AWS's example and the AWS SDK), presignS3, presignSupabase (against storage-js)
 npm run test:browser   # bundles with esbuild, runs Playwright: compress, upload and the element against a faked bucket
 sh test/make-fixtures.sh   # regenerate fixtures (ImageMagick + Pillow)
+npm run site:serve     # build the docs and demo site into site/dist and serve it on :4173
+npx playwright test -c site/playwright.config.ts   # the site's own checks
 ```
+
+The site deploys to Vercel as configured in `vercel.json`. Its demo uploads to a service worker
+(`site/public/sw.js`) rather than a bucket, so visitors' photos stay in their browser.
